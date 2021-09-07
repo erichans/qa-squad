@@ -138,6 +138,7 @@ dmypy.json
 cython_debug/
 
 /results
+/runs
 /logs
 /.idea
 data/*.pickle

@@ -3,7 +3,7 @@ import json
 
 def flatten_data(file):
     # Opening JSON file & returns JSON object as a dictionary
-    f = open(file, encoding="utf-8")
+    f = open(file, encoding='utf-8')
     data = json.load(f)
 
     # Iterating through the json list 
@@ -27,8 +27,8 @@ def flatten_data(file):
                 entry['context'] = context.strip()
                 entry['question'] = question.strip()
 
-                answer_starts = [answer["answer_start"] for answer in answers]
-                answer_texts = [answer["text"].strip() for answer in answers]
+                answer_starts = [answer['answer_start'] for answer in answers]
+                answer_texts = [answer['text'].strip() for answer in answers]
                 entry['answers'] = {}
                 entry['answers']['answer_start'] = answer_starts
                 entry['answers']['text'] = answer_texts
@@ -57,21 +57,22 @@ def flatten_data(file):
 
 def prepare_train_features(examples, tokenizer, max_length, stride, padding_right):
     tokenized_examples = tokenizer(
-        examples["question" if padding_right else "context"],
-        examples["context" if padding_right else "question"],
-        max_length=max_length, stride=stride, padding="max_length",
+        examples['question' if padding_right else 'context'],
+        examples['context' if padding_right else 'question'],
+        max_length=max_length, stride=stride, padding='max_length',
         return_overflowing_tokens=True, return_offsets_mapping=True,
-        truncation="only_second" if padding_right else "only_first")
+        truncation='only_second' if padding_right else 'only_first')
 
-    sample_mapping = tokenized_examples.pop("overflow_to_sample_mapping")
-    offset_mapping = tokenized_examples.pop("offset_mapping")
+    sample_mapping = tokenized_examples.pop('overflow_to_sample_mapping')
+    offset_mapping = tokenized_examples['offset_mapping']
 
-    tokenized_examples["start_positions"] = []
-    tokenized_examples["end_positions"] = []
+    tokenized_examples['id'] = []
+    tokenized_examples['start_positions'] = []
+    tokenized_examples['end_positions'] = []
 
     for i, offsets in enumerate(offset_mapping):
         # We will label impossible answers with the index of the CLS token.
-        input_ids = tokenized_examples["input_ids"][i]
+        input_ids = tokenized_examples['input_ids'][i]
         cls_index = input_ids.index(tokenizer.cls_token_id)
 
         # Grab the sequence corresponding to that example (to know what is the context and what is the question).
@@ -79,15 +80,16 @@ def prepare_train_features(examples, tokenizer, max_length, stride, padding_righ
 
         # One example can give several spans, this is the index of the example containing this span of text.
         sample_index = sample_mapping[i]
-        answers = examples["answers"][sample_index]
+        tokenized_examples['id'].append(examples['id'][sample_index])
+        answers = examples['answers'][sample_index]
         # If no answers are given, set the cls_index as answer.
-        if len(answers["answer_start"]) == 0:
-            tokenized_examples["start_positions"].append(cls_index)
-            tokenized_examples["end_positions"].append(cls_index)
+        if len(answers['answer_start']) == 0:
+            tokenized_examples['start_positions'].append(cls_index)
+            tokenized_examples['end_positions'].append(cls_index)
             continue
 
-        start_char = answers["answer_start"][0]
-        end_char = start_char + len(answers["text"][0])
+        start_char = answers['answer_start'][0]
+        end_char = start_char + len(answers['text'][0])
 
         context_token = 1 if padding_right else 0
         token_start_index = sequence_ids.index(context_token)
@@ -95,17 +97,17 @@ def prepare_train_features(examples, tokenizer, max_length, stride, padding_righ
 
         # Detect if the answer is out of the span (in which case this feature is labeled with the CLS index).
         if start_char < offsets[token_start_index][0] or end_char > offsets[token_end_index][1]:
-            tokenized_examples["start_positions"].append(cls_index)
-            tokenized_examples["end_positions"].append(cls_index)
+            tokenized_examples['start_positions'].append(cls_index)
+            tokenized_examples['end_positions'].append(cls_index)
             continue
 
         # Otherwise move the token_start_index and token_end_index to the two ends of the answer.
         # Note: we could go after the last offset if the answer is the last word (edge case).
         while token_start_index < len(offsets) and offsets[token_start_index][0] <= start_char:
             token_start_index += 1
-        tokenized_examples["start_positions"].append(token_start_index - 1)
+        tokenized_examples['start_positions'].append(token_start_index - 1)
         while offsets[token_end_index][1] >= end_char:
             token_end_index -= 1
-        tokenized_examples["end_positions"].append(token_end_index + 1)
+        tokenized_examples['end_positions'].append(token_end_index + 1)
 
     return tokenized_examples
