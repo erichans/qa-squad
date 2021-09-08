@@ -3,7 +3,7 @@ from tqdm.auto import tqdm
 import numpy as np
 
 
-def postprocess_qa_predictions(examples, features, raw_predictions, tokenizer, n_best_size=20, max_answer_length=30):
+def postprocess_qa_predictions(examples, features, raw_predictions, n_best_size=20, max_answer_length=30):
     all_start_logits, all_end_logits = raw_predictions
     # Build a map example to its corresponding features.
     example_id_to_index = {k: i for i, k in enumerate(examples['id'])}
@@ -38,15 +38,12 @@ def postprocess_qa_predictions(examples, features, raw_predictions, tokenizer, n
             start_indexes = np.argsort(start_logits)[-1: -n_best_size - 1: -1].tolist()
             end_indexes = np.argsort(end_logits)[-1: -n_best_size - 1: -1].tolist()
             for start_index in start_indexes:
+                if start_index >= len(offset_mapping) or offset_mapping[start_index] is None:
+                    continue
                 for end_index in end_indexes:
                     # Don't consider out-of-scope answers, either because the indices are out of bounds or correspond
                     # to part of the input_ids that are not in the context.
-                    if (
-                            start_index >= len(offset_mapping)
-                            or end_index >= len(offset_mapping)
-                            or offset_mapping[start_index] is None
-                            or offset_mapping[end_index] is None
-                    ):
+                    if end_index >= len(offset_mapping) or offset_mapping[end_index] is None:
                         continue
                     # Don't consider answers with a length that is either < 0 or > max_answer_length.
                     if end_index < start_index or end_index - start_index + 1 > max_answer_length:

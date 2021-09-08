@@ -39,7 +39,7 @@ def run():
 
     def compute_metrics(p: EvalPrediction) -> Dict:
         final_predictions = postprocess_qa_predictions(qa_dataset['validation'],
-                                                       tokenized_datasets['validation'], p.predictions, tokenizer)
+                                                       tokenized_datasets['validation'], p.predictions)
 
         formatted_predictions = [{"id": k, "prediction_text": v} for k, v in final_predictions.items()]
         references = [{"id": ex["id"], "answers": ex["answers"]} for ex in qa_dataset['validation']]
